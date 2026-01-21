@@ -62,6 +62,9 @@ public class OIDCClient extends OIDCRequestService {
 
     private final OIDCProviderMetadata providerMetadata;
 
+    // Internal token endpoint URI for backend communication
+    private final URI internalTokenEndpointUri;
+
     public OIDCClient(KeycloakProperties properties, OIDCMetadataHolder metadataHolder) {
         super(properties);
         this.properties = properties;
@@ -73,6 +76,17 @@ public class OIDCClient extends OIDCRequestService {
         this.scope = Scope.parse(properties.getClient().getScope());
 
         this.providerMetadata = metadataHolder.getProviderMetadata();
+
+        // Build internal token endpoint URI from metadataUrl if available
+        String metadataUrl = properties.getMetadataUrl();
+        if (metadataUrl != null && !metadataUrl.isEmpty()) {
+            // metadataUrl format: http://sso_keycloak:8080/realms/myrealm
+            // token endpoint format: http://sso_keycloak:8080/realms/myrealm/protocol/openid-connect/token
+            this.internalTokenEndpointUri = URI.create(metadataUrl + "/protocol/openid-connect/token");
+        } else {
+            // Fall back to OIDC metadata token endpoint
+            this.internalTokenEndpointUri = providerMetadata.getTokenEndpointURI();
+        }
     }
 
     public URI login() {
@@ -91,7 +105,8 @@ public class OIDCClient extends OIDCRequestService {
         AuthorizationGrant codeGrant = new AuthorizationCodeGrant(code, callbackUri);
         ClientAuthentication clientAuthentication = new ClientSecretBasic(clientID, clientSecret);
 
-        TokenRequest tokenRequest = new TokenRequest(providerMetadata.getTokenEndpointURI(),
+        // Use internal token endpoint for backend communication
+        TokenRequest tokenRequest = new TokenRequest(internalTokenEndpointUri,
                 clientAuthentication, codeGrant);
         HTTPRequest tokenHttpRequest = configureHttpRequest(tokenRequest.toHTTPRequest());
         try {
@@ -131,7 +146,8 @@ public class OIDCClient extends OIDCRequestService {
 
     public OIDCTokens authenticate(String username, String password) {
         ClientAuthentication clientAuthentication = new ClientSecretPost(new ClientID(username), new Secret(password));
-        TokenRequest tokenRequest = new TokenRequest(this.providerMetadata.getTokenEndpointURI(), clientAuthentication,
+        // Use internal token endpoint for backend communication
+        TokenRequest tokenRequest = new TokenRequest(this.internalTokenEndpointUri, clientAuthentication,
                 new ClientCredentialsGrant());
         HTTPRequest httpRequest = configureHttpRequest(tokenRequest.toHTTPRequest());
 
@@ -150,14 +166,42 @@ public class OIDCClient extends OIDCRequestService {
         }
     }
 
+    /**
+     * Get the full URL of the request, respecting X-Forwarded-* headers from reverse proxy.
+     * This is necessary for OIDC callback validation when behind nginx/load balancer.
+     */
     private static String getFullURL(HttpServletRequest request) {
-        StringBuilder requestURL = new StringBuilder(request.getRequestURL().toString());
-        String queryString = request.getQueryString();
-
-        if (queryString == null) {
-            return requestURL.toString();
-        } else {
-            return requestURL.append('?').append(queryString).toString();
+        // Check for X-Forwarded-Proto header (set by nginx when proxying HTTPS)
+        String proto = request.getHeader("X-Forwarded-Proto");
+        if (proto == null || proto.isEmpty()) {
+            proto = request.getScheme();
         }
+
+        // Check for X-Forwarded-Host header
+        String host = request.getHeader("X-Forwarded-Host");
+        if (host == null || host.isEmpty()) {
+            host = request.getHeader("Host");
+        }
+        if (host == null || host.isEmpty()) {
+            host = request.getServerName();
+            int port = request.getServerPort();
+            if ((proto.equals("http") && port != 80) || (proto.equals("https") && port != 443)) {
+                host = host + ":" + port;
+            }
+        }
+
+        // Build the full URL with the external protocol and host
+        StringBuilder requestURL = new StringBuilder();
+        requestURL.append(proto);
+        requestURL.append("://");
+        requestURL.append(host);
+        requestURL.append(request.getRequestURI());
+
+        String queryString = request.getQueryString();
+        if (queryString != null) {
+            requestURL.append('?').append(queryString);
+        }
+
+        return requestURL.toString();
     }
 }

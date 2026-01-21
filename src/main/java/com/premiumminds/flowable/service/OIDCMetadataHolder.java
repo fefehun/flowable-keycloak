@@ -31,7 +31,11 @@ public class OIDCMetadataHolder extends OIDCRequestService {
     public OIDCMetadataHolder(KeycloakProperties properties) {
         super(properties);
 
-        Issuer issuer = new Issuer(properties.getIssuerUrl());
+        // Use metadataUrl for OIDC discovery if set, otherwise fall back to issuerUrl
+        // This allows using an internal HTTP URL for metadata discovery while
+        // the issuerUrl remains the external HTTPS URL for token validation
+        String metadataUrl = properties.getEffectiveMetadataUrl();
+        Issuer issuer = new Issuer(metadataUrl);
 
         OIDCProviderConfigurationRequest request = new OIDCProviderConfigurationRequest(issuer);
         // Make HTTP request
@@ -40,7 +44,7 @@ public class OIDCMetadataHolder extends OIDCRequestService {
             HTTPResponse httpResponse = httpRequest.send();
             providerMetadata = OIDCProviderMetadata.parse(httpResponse.getContentAsJSONObject());
         } catch (Exception e) {
-            throw new RuntimeException("OpenID Connect - error getting issuer '" + issuer + "' metadata", e);
+            throw new RuntimeException("OpenID Connect - error getting issuer '" + metadataUrl + "' metadata", e);
         }
     }
 

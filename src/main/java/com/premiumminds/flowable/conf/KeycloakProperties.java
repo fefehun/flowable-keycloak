@@ -29,6 +29,13 @@ public class KeycloakProperties {
 
     private String issuerUrl;
 
+    /**
+     * Optional internal URL for OIDC metadata discovery.
+     * If not set, issuerUrl will be used.
+     * Use this when the issuerUrl is external HTTPS but needs to be accessed internally via HTTP.
+     */
+    private String metadataUrl;
+
     private Client client;
 
     private int connectTimeout;
@@ -81,6 +88,22 @@ public class KeycloakProperties {
 
     public void setIssuerUrl(String issuerUrl) {
         this.issuerUrl = issuerUrl;
+    }
+
+    public String getMetadataUrl() {
+        return metadataUrl;
+    }
+
+    public void setMetadataUrl(String metadataUrl) {
+        this.metadataUrl = metadataUrl;
+    }
+
+    /**
+     * Returns the URL to use for OIDC metadata discovery.
+     * If metadataUrl is set, returns that; otherwise returns issuerUrl.
+     */
+    public String getEffectiveMetadataUrl() {
+        return metadataUrl != null && !metadataUrl.isEmpty() ? metadataUrl : issuerUrl;
     }
 
     public static class Client {

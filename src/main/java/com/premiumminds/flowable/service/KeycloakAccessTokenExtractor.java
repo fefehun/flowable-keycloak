@@ -37,6 +37,7 @@ import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.openid.connect.sdk.op.OIDCProviderMetadata;
 import com.premiumminds.flowable.conf.KeycloakProperties;
 import java.io.IOException;
+import java.net.URL;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
@@ -59,7 +60,20 @@ public class KeycloakAccessTokenExtractor {
                 keycloakProperties.getReadTimeout());
 
         try {
-            String json = retriever.retrieveResource(providerMetadata.getJWKSetURI().toURL()).getContent();
+            // Use internal URL for JWKS retrieval instead of OIDC metadata URL
+            // This allows using an internal HTTP URL when the metadata contains external HTTPS URLs
+            URL jwksUrl;
+            String metadataUrl = keycloakProperties.getMetadataUrl();
+            if (metadataUrl != null && !metadataUrl.isEmpty()) {
+                // Build internal JWKS URL from metadataUrl
+                // metadataUrl format: http://sso_keycloak:8080/realms/myrealm
+                // JWKS URL format: http://sso_keycloak:8080/realms/myrealm/protocol/openid-connect/certs
+                jwksUrl = new URL(metadataUrl + "/protocol/openid-connect/certs");
+            } else {
+                // Fall back to OIDC metadata JWKS URL
+                jwksUrl = providerMetadata.getJWKSetURI().toURL();
+            }
+            String json = retriever.retrieveResource(jwksUrl).getContent();
             jwkSet = JWKSet.parse(json);
         } catch (IOException | ParseException e) {
             throw new RuntimeException("problem retrieving jwk sets from keycloak", e);

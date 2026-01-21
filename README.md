@@ -1,6 +1,21 @@
 # Flowable Keycloak integration library
 
-This library allows to replace Flowable IDM with Keycloak integration (through OpenID Connect) to the 
+> **Fork Notice**: This is a fork of [premium-minds/flowable-keycloak](https://github.com/premium-minds/flowable-keycloak) with modifications for **Keycloak 26.x compatibility**.
+>
+> **Changes made by [Claude Code](https://claude.ai/claude-code):**
+> - Updated `KeycloakProperties.java` - Fixed property binding for newer Spring Boot
+> - Updated `AuthenticationHandler.java` - Fixed OAuth2 token handling
+> - Updated `KeycloakAccessTokenExtractor.java` - Updated token extraction for Keycloak 26.x
+> - Updated `OIDCClient.java` - Fixed OIDC client configuration
+> - Updated `OIDCMetadataHolder.java` - Updated metadata handling
+>
+> See the [keycloak-26-compatibility](https://github.com/fefehun/flowable-keycloak/tree/keycloak-26-compatibility) branch for all changes.
+>
+> Used by: [flowable-keycloak-env](https://github.com/fefehun/flowable-keycloak-env)
+
+---
+
+This library allows to replace Flowable IDM with Keycloak integration (through OpenID Connect) to the
 Flowable Apps (https://flowable.com/open-source/docs/bpmn/ch14-Applications/).
 
 ## Maven project

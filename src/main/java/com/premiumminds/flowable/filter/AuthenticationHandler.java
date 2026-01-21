@@ -122,7 +122,44 @@ public class AuthenticationHandler {
 
         addRememberCookie(token.getId(), response);
 
-        response.sendRedirect(request.getContextPath());
+        // Build redirect URL respecting X-Forwarded headers from reverse proxy
+        String redirectUrl = buildRedirectUrl(request);
+        response.sendRedirect(redirectUrl);
+    }
+
+    /**
+     * Build the redirect URL after successful authentication.
+     * Respects X-Forwarded-Proto and X-Forwarded-Host headers from reverse proxy.
+     */
+    private String buildRedirectUrl(HttpServletRequest request) {
+        // Check for X-Forwarded-Proto header (set by nginx when proxying HTTPS)
+        String proto = request.getHeader("X-Forwarded-Proto");
+        LOGGER.info("buildRedirectUrl: X-Forwarded-Proto header = {}", proto);
+        if (proto == null || proto.isEmpty()) {
+            proto = request.getScheme();
+            LOGGER.info("buildRedirectUrl: Using request.getScheme() = {}", proto);
+        }
+
+        // Check for X-Forwarded-Host header
+        String host = request.getHeader("X-Forwarded-Host");
+        LOGGER.info("buildRedirectUrl: X-Forwarded-Host header = {}", host);
+        if (host == null || host.isEmpty()) {
+            host = request.getHeader("Host");
+            LOGGER.info("buildRedirectUrl: Using Host header = {}", host);
+        }
+        if (host == null || host.isEmpty()) {
+            host = request.getServerName();
+            int port = request.getServerPort();
+            if ((proto.equals("http") && port != 80) || (proto.equals("https") && port != 443)) {
+                host = host + ":" + port;
+            }
+            LOGGER.info("buildRedirectUrl: Using serverName:port = {}", host);
+        }
+
+        String contextPath = request.getContextPath();
+        String redirectUrl = proto + "://" + host + contextPath;
+        LOGGER.info("buildRedirectUrl: Final redirect URL = {}", redirectUrl);
+        return redirectUrl;
     }
 
     private Pair<RemoteToken, FlowableAppUser> getValidFlowableUser(HttpServletRequest request, HttpServletResponse response) {
