@@ -1,17 +1,37 @@
 # Flowable Keycloak integration library
 
 > **Fork Notice**: This is a fork of [premium-minds/flowable-keycloak](https://github.com/premium-minds/flowable-keycloak) with modifications for **Keycloak 26.x compatibility**.
->
-> **Changes made by [Claude Code](https://claude.ai/claude-code):**
-> - Updated `KeycloakProperties.java` - Fixed property binding for newer Spring Boot
-> - Updated `AuthenticationHandler.java` - Fixed OAuth2 token handling
-> - Updated `KeycloakAccessTokenExtractor.java` - Updated token extraction for Keycloak 26.x
-> - Updated `OIDCClient.java` - Fixed OIDC client configuration
-> - Updated `OIDCMetadataHolder.java` - Updated metadata handling
->
-> See the [keycloak-26-compatibility](https://github.com/fefehun/flowable-keycloak/tree/keycloak-26-compatibility) branch for all changes.
->
-> Used by: [flowable-keycloak-env](https://github.com/fefehun/flowable-keycloak-env)
+
+## Why This Fork?
+
+The original library was designed for older Keycloak versions (pre-17.x) which used a different URL structure (`/auth/realms/...`) and token format. Keycloak 17+ introduced breaking changes:
+
+1. **URL Structure Change**: Keycloak 17+ removed the `/auth` prefix from URLs. The OIDC discovery endpoint moved from `/auth/realms/{realm}/.well-known/openid-configuration` to `/realms/{realm}/.well-known/openid-configuration`.
+
+2. **Token Format Changes**: Keycloak 26.x uses updated JWT token claims and structure, requiring changes to token extraction and validation logic.
+
+3. **Spring Security Updates**: Newer Spring Boot versions use different OAuth2 configuration patterns, requiring updates to property binding and security filter chains.
+
+## Changes Made
+
+**Modified by [Claude Code](https://claude.ai/claude-code):**
+
+| File | Change | Reason |
+|------|--------|--------|
+| `KeycloakProperties.java` | Updated `@ConfigurationProperties` binding | Spring Boot 2.7+ requires relaxed binding updates |
+| `AuthenticationHandler.java` | Fixed OAuth2 token handling | Keycloak 26.x returns tokens with different claim structure |
+| `KeycloakAccessTokenExtractor.java` | Updated token parsing logic | New JWT format in Keycloak 26.x (`realm_access` vs `resource_access` claims) |
+| `OIDCClient.java` | Fixed OIDC client configuration | Updated for new discovery endpoint URL structure |
+| `OIDCMetadataHolder.java` | Updated metadata fetching | Keycloak 26.x OIDC metadata has additional required fields |
+
+## Branch
+
+See the [keycloak-26-compatibility](https://github.com/fefehun/flowable-keycloak/tree/keycloak-26-compatibility) branch for all changes.
+
+## Related Projects
+
+- **[flowable-keycloak-env](https://github.com/fefehun/flowable-keycloak-env)** - Docker image using this fork
+- **[flowable-keycloak-example](https://github.com/fefehun/flowable-keycloak-example/tree/keycloak-26-compatibility)** - Flowable UI modules using this library
 
 ---
 
